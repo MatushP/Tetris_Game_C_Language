@@ -1,0 +1,134 @@
+
+/*
+	Matush Polakovic	mpola783@mtroyal.ca
+	Zachariah Ly	zly859@mtroyal.ca
+	COMP2659
+ 	Paul Pospisil
+
+	Purpose - Programmable Sound Generator, generate digital sound
+	Details: 
+
+		 PSG SOUND REGISTER LIST/MAP
+		-----------------------------
+	R0-1:	Channel 'A' Freq. Fine/Rough Tone Adj.
+	R2-3:	Channel 'B' "		"	"		" "
+	R4-5:	Channel 'C' "		"	"		" "
+	R6	:	Frequency of Noise
+	R7	:	I/O Port and Mixer Setting
+	R8-A:	Level of Channels 'A'-'C'
+	RB-C:	Frequency of Envelope (Fine/Rough)
+	RD	:	Shape of Envelope
+	RE-F:	Data of I/O Port 'A' & 'B'
+*/
+
+#include <osbind.h>
+#include <unistd.h>
+#include "psg.h"
+
+volatile char *PSG_reg_select = 0xFF8800;
+volatile char *PSG_reg_write  = 0xFF8802;
+
+#define NOTES 5
+
+
+
+#define channelSet 8
+#define volume  11
+#define tune  11
+
+#define  c  0x1DE
+#define  C  0x1C3
+#define  d  0x1AA
+#define  D  0x192
+#define  e  0x17B
+#define  f  0x166
+#define  F  0x152
+#define  g  0x13F
+#define  G  0x12D
+#define  a  0x11C
+#define  A  0x10C
+#define  b  0x0FD
+
+
+static int music[NOTES] = {c, C, d, D, e};
+
+
+void write_psg(int reg, UINT8 val) {
+	if(validIntToReg (reg) < 0x10) {
+		long old_ssp = Super(0);
+		*PSG_reg_select = reg;		/* set channel A fine tune */
+		*PSG_reg_write  = val;	
+		Super(old_ssp);
+	}
+}
+
+void set_tone(int channel, int tuning) {
+	if (channel < 6 && channel >= 0)
+		if (validIntToUINT8(volumeLvl) != 0xFF) 
+			write_psg(channel, tuning);
+}
+
+void set_volume(int channel, int volumeLvl) {
+	
+	if (channel < 11 && channel > 7) 
+		if (validIntToUINT8(volumeLvl) != 0xFF) 
+			write_psg(channel, volumeLvl);
+}
+
+void enable_channel(int channel, int tone_on, int noise_on) {
+	
+	
+}
+
+void stop_sound() {
+	write_psg(6, ZEROBYTE);		/* Freq. of Noise Register*/
+	write_psg(7, ZEROBYTE);		/* I/O Port & Mixer Setting */
+	write_psg(11, ZEROBYTE);	/* Envelope Fine */
+	write_psg(12, ZEROBYTE);	/* Envelope Rough */
+	write_psg(13, ZEROBYTE);	/* Envelope Shape */
+
+	set_volume(8, 0);		/* A,B, and C Volume Registers */
+	set_volume(9, 0);
+	set_volume(10, 0);
+}
+
+void start_music()
+{
+	int index = 0;
+	long old_ssp = Super(0);
+
+	enable_channel(channelSet, 1, 1);
+	
+	set_volume(channelSet, volume);					/* set channel A volume */
+	set_tone(channelSet, tune);				
+
+
+	*PSG_reg_select = channelSet;					
+	*PSG_reg_write  = music[index];
+
+
+	Super(old_ssp);
+	
+}
+
+void update_music(UINT32 time_elapsed) {
+	
+	
+	
+}
+
+/*
+	HELPER FUNCTIONS
+	
+	validIntToUINT8 - Safeguard to prevent non-UINT8 values from being
+						used in write_psg. 0xFF for error value makes it
+						off-limtis, as a consequence
+*/
+
+UINT8 validIntToUINT8 (int num){
+	if (num >= ZEROBYTE && num < 0xFF)
+		return num;
+	
+	return 0xFF;
+}
+
